@@ -3,10 +3,13 @@ require "openssl"
 module HttpSignatures
   module Algorithm
     class Hmac
-
       def initialize(digest_name)
         @digest_name = digest_name
         @digest = OpenSSL::Digest.new(digest_name)
+      end
+
+      def symmetric
+        true
       end
 
       def name

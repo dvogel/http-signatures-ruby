@@ -7,7 +7,7 @@ module HttpSignatures
     end
 
     def valid?
-      signature_header_present? && signature_matches?
+      signature_header_present? && signature_valid?
     end
 
     private
@@ -16,10 +16,27 @@ module HttpSignatures
       @message.key?("Signature")
     end
 
-    def signature_matches?
-      expected_signature_base64 == provided_signature_base64
+    def signature_valid?
+      if algorithm.symmetric
+        signature_matches?
+      else
+        signature_verified?
+      end
     rescue SignatureParametersParser::Error
       false
+    end
+
+    def signature_verified?
+      signature_binary = Base64.decode64(provided_signature_base64)
+      signing_string = SigningString.new(
+        header_list: header_list,
+        message: @message,
+      ).to_str
+      algorithm.verify(key.secret, signature_binary, signing_string)
+    end
+
+    def signature_matches?
+      expected_signature_base64 == provided_signature_base64
     end
 
     def expected_signature_base64
@@ -44,7 +61,7 @@ module HttpSignatures
     end
 
     def algorithm
-      Algorithm.create(parsed_parameters["algorithm"])
+      @algorithm ||= Algorithm.create(parsed_parameters["algorithm"])
     end
 
     def header_list
